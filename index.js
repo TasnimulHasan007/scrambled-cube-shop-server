@@ -46,6 +46,7 @@ async function run() {
     await client.connect()
     const database = client.db('scrambled-cubeshop')
     const usersCollection = database.collection('users')
+    const productsCollection = database.collection('products')
     // post an user
     app.post('/users', async (req, res) => {
       const user = req.body
@@ -78,6 +79,25 @@ async function run() {
         isAdmin = true
       }
       res.json({ admin: isAdmin })
+    })
+    // post a product
+    app.post('/products', verifyToken, async (req, res) => {
+      const product = req.body
+      const requester = req.decodedEmail
+      const requesterRole = await usersCollection.findOne({
+        email: requester,
+      })
+      if (requesterRole?.role === 'admin') {
+        const result = await productsCollection.insertOne(product)
+        res.json(result)
+      } else {
+        res.status(403).send('Access denied')
+      }
+    })
+    // get all products
+    app.get('/products', async (req, res) => {
+      const products = await productsCollection.find({}).toArray()
+      res.json(products)
     })
   } finally {
     // await client.close()
