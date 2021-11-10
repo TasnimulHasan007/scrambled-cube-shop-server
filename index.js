@@ -33,7 +33,6 @@ const client = new MongoClient(uri, {
 async function verifyToken(req, res, next) {
   if (req?.headers?.authorization?.startsWith('Bearer ')) {
     const token = req.headers.authorization.split(' ')[1]
-
     try {
       const decodedUser = await admin.auth().verifyIdToken(token)
       req.decodedEmail = decodedUser.email
@@ -115,8 +114,38 @@ async function run() {
       const isUser = await usersCollection.findOne({
         email: requester,
       })
-      if (isUser) {
+      if (isUser !== null) {
         const result = await ordersCollection.insertOne(order)
+        res.json(result)
+      } else {
+        res.status(401).send('Unauthorized')
+      }
+    })
+    // get orders for a user
+    app.get('/orders/:email', verifyToken, async (req, res) => {
+      const email = req.params.email
+      const requester = req.decodedEmail
+      const requesterRole = await usersCollection.findOne({
+        email: requester,
+      })
+      if (requesterRole !== null) {
+        const query = { userEmail: email }
+        const orders = await ordersCollection.find(query).toArray()
+        res.json(orders)
+      } else {
+        res.status(401).send('Unauthorized')
+      }
+    })
+    // delete an order
+    app.delete('/orders/:id', verifyToken, async (req, res) => {
+      const id = req.params.id
+      const requester = req.decodedEmail
+      const requesterRole = await usersCollection.findOne({
+        email: requester,
+      })
+      if (requesterRole !== null) {
+        const query = { _id: ObjectId(id) }
+        const result = await ordersCollection.deleteOne(query)
         res.json(result)
       } else {
         res.status(401).send('Unauthorized')
