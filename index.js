@@ -1,6 +1,7 @@
 //imports
 const express = require('express')
 const cors = require('cors')
+const ObjectId = require('mongodb').ObjectId
 const { MongoClient } = require('mongodb')
 require('dotenv').config()
 const admin = require('firebase-admin')
@@ -47,6 +48,7 @@ async function run() {
     const database = client.db('scrambled-cubeshop')
     const usersCollection = database.collection('users')
     const productsCollection = database.collection('products')
+    const ordersCollection = database.collection('orders')
     // post an user
     app.post('/users', async (req, res) => {
       const user = req.body
@@ -98,6 +100,27 @@ async function run() {
     app.get('/products', async (req, res) => {
       const products = await productsCollection.find({}).toArray()
       res.json(products)
+    })
+    // get single product
+    app.get('/products/:id', async (req, res) => {
+      const id = req.params.id
+      const query = { _id: ObjectId(id) }
+      const product = await productsCollection.findOne(query)
+      res.json(product)
+    })
+    // post an order
+    app.post('/orders', verifyToken, async (req, res) => {
+      const order = req.body
+      const requester = req.decodedEmail
+      const isUser = await usersCollection.findOne({
+        email: requester,
+      })
+      if (isUser) {
+        const result = await ordersCollection.insertOne(order)
+        res.json(result)
+      } else {
+        res.status(401).send('Unauthorized')
+      }
     })
   } finally {
     // await client.close()
