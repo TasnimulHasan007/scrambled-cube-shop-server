@@ -49,6 +49,7 @@ async function run() {
     const usersCollection = database.collection('users')
     const productsCollection = database.collection('products')
     const ordersCollection = database.collection('orders')
+    const reviewsCollection = database.collection('reviews')
     // post an user
     app.post('/users', async (req, res) => {
       const user = req.body
@@ -122,6 +123,27 @@ async function run() {
       } else {
         res.status(403).send('Access denied')
       }
+    })
+
+    // post a review
+    app.post('/reviews', verifyToken, async (req, res) => {
+      const review = req.body
+      const requester = req.decodedEmail
+      const isUser = await usersCollection.findOne({
+        email: requester,
+      })
+      if (isUser) {
+        const result = await reviewsCollection.insertOne(review)
+        res.json(result)
+      } else {
+        res.status(401).send('Unauthorized')
+      }
+    })
+
+    // get all reviews
+    app.get('/reviews', async (req, res) => {
+      const reviews = await reviewsCollection.find({}).toArray()
+      res.json(reviews)
     })
 
     // post an order
