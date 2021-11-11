@@ -99,8 +99,20 @@ async function run() {
     })
     // get all products
     app.get('/products', async (req, res) => {
-      const products = await productsCollection.find({}).toArray()
-      res.json(products)
+      const cursor = productsCollection.find({})
+      const page = req.query.page
+      const size = parseInt(req.query.size)
+      const count = await cursor.count()
+      let products
+      if (page) {
+        products = await cursor
+          .skip(page * size)
+          .limit(size)
+          .toArray()
+      } else {
+        products = await cursor.toArray()
+      }
+      res.send({ count, products })
     })
     // get single product
     app.get('/products/:id', async (req, res) => {
