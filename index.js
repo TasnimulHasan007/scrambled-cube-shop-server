@@ -5,6 +5,7 @@ const ObjectId = require('mongodb').ObjectId
 const { MongoClient } = require('mongodb')
 require('dotenv').config()
 const admin = require('firebase-admin')
+const { query } = require('express')
 
 const app = express()
 const port = process.env.PORT || 5000
@@ -121,7 +122,20 @@ async function run() {
         res.status(401).send('Unauthorized')
       }
     })
-    // get orders for a user
+    // get all orders
+    app.get('/orders', verifyToken, async (req, res) => {
+      const requester = req.decodedEmail
+      const requesterRole = await usersCollection.findOne({
+        email: requester,
+      })
+      if (requesterRole?.role === 'admin') {
+        const orders = await ordersCollection.find({}).toArray()
+        res.json(orders)
+      } else {
+        res.status(403).send('Access denied')
+      }
+    })
+    // get orders for an user
     app.get('/orders/:email', verifyToken, async (req, res) => {
       const email = req.params.email
       const requester = req.decodedEmail
@@ -143,9 +157,29 @@ async function run() {
       const requesterRole = await usersCollection.findOne({
         email: requester,
       })
-      if (requesterRole !== null) {
-        const query = { _id: ObjectId(id) }
+      const query = { _id: ObjectId(id) }
+      const order = await ordersCollection.findOne(query)
+      if (requesterRole?.role === 'admin') {
         const result = await ordersCollection.deleteOne(query)
+        res.json(result)
+      } else if (order?.userEmail === requester) {
+        const result = await ordersCollection.deleteOne(query)
+        res.json(result)
+      } else {
+        res.status(401).send('Unauthorized')
+      }
+    })
+    // update order status
+    app.put('/orders/:id', verifyToken, async (req, res) => {
+      const id = req.params.id
+      const requester = req.decodedEmail
+      const requesterRole = await usersCollection.findOne({
+        email: requester,
+      })
+      const query = { _id: ObjectId(id) }
+      if (requesterRole?.role === 'admin') {
+        const updateDoc = { $set: { status: req.body.status } }
+        const result = await ordersCollection.updateOne(query, updateDoc)
         res.json(result)
       } else {
         res.status(401).send('Unauthorized')
