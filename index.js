@@ -108,6 +108,22 @@ async function run() {
       const product = await productsCollection.findOne(query)
       res.json(product)
     })
+    // delete a product
+    app.delete('/products/:id', verifyToken, async (req, res) => {
+      const id = req.params.id
+      const requester = req.decodedEmail
+      const requesterRole = await usersCollection.findOne({
+        email: requester,
+      })
+      if (requesterRole?.role === 'admin') {
+        const query = { _id: ObjectId(id) }
+        const result = await productsCollection.deleteOne(query)
+        res.json(result)
+      } else {
+        res.status(403).send('Access denied')
+      }
+    })
+
     // post an order
     app.post('/orders', verifyToken, async (req, res) => {
       const order = req.body
